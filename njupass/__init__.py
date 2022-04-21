@@ -5,13 +5,13 @@ PACKAGES:
     NjuUiaAuth
     NjuEliteAuth
 """
+import os
+import re
+import time
+from io import BytesIO
+
 import execjs
 import requests
-import re
-import os
-from io import BytesIO
-import njupass.ocr
-import time
 
 URL_NJU_UIA_AUTH = 'https://authserver.nju.edu.cn/authserver/login'
 URL_NJU_ELITE_LOGIN = 'http://elite.nju.edu.cn/jiaowu/login.do'
@@ -78,6 +78,8 @@ class NjuUiaAuth:
             Try to login using OCR to bypass captcha.
             Return true if login success, false otherwise
         """
+        from . import ocr
+
         try_times = 3
         for _ in range(try_times):
             captchaText = ""
@@ -118,7 +120,7 @@ class NjuUiaAuth:
 class NjuEliteAuth:
     """
     DESCRIPTION:
-        Designed for passing Unified Identity Authentication(UIA) of Nanjing University.
+        Designed for passing Jiaowu of Nanjing University.
     """
 
     def __init__(self):
