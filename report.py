@@ -1,13 +1,9 @@
-import datetime
-import json
-import logging
-import time
-from urllib.parse import urlencode
-
-from dotenv import load_dotenv
-from pytz import timezone
-
 from njupass import NjuUiaAuth
+import json
+import time
+import datetime
+from pytz import timezone
+from urllib.parse import urlencode
 
 URL_JKDK_LIST = 'http://ehallapp.nju.edu.cn/xgfw/sys/yqfxmrjkdkappnju/apply/getApplyInfoList.do'
 URL_JKDK_APPLY = 'http://ehallapp.nju.edu.cn/xgfw/sys/yqfxmrjkdkappnju/apply/saveApplyInfos.do'
@@ -17,27 +13,9 @@ URL_JDKD_INDEX = 'http://ehallapp.nju.edu.cn/xgfw/sys/mrjkdkappnju/index.html'
 def get_zjhs_time(method='YESTERDAY'):
     """获取最近核酸时间"""
     today = datetime.datetime.now(timezone('Asia/Shanghai'))
-    yesterday = today + datetime.timedelta(-1)
+    yesterday = today + datetime.timedelta(-5)
     if method == 'YESTERDAY':
-        return yesterday.strftime("%Y-%m-%d %-H")
-
-
-def login(username, password, logger, auth: NjuUiaAuth):
-    """
-    登录统一验证
-    :return True 如果登录成功
-    """
-    logger.info('尝试登录...')
-
-    if auth.needCaptcha(username):
-        logger.info("统一认证平台需要输入验证码才能继续，尝试识别验证码...")
-    ok = auth.tryLogin(username, password)
-    if not ok:
-        logger.error("登录失败。可能是用户名或密码错误，或是验证码无法识别。")
-        return False
-
-    logger.info('登录成功！')
-    return True
+        return yesterday.strftime("%Y-%m-%d %H")
 
 
 def apply(curr_location, logger, auth: NjuUiaAuth, covidTestMethod='YESTERDAY', force=False):
@@ -55,14 +33,17 @@ def apply(curr_location, logger, auth: NjuUiaAuth, covidTestMethod='YESTERDAY', 
             continue
 
         dk_info = json.loads(r.text)['data'][0]
+        print(r.json()['data'][0])
 
         has_applied = dk_info['TBZT'] == "1"
         wid = dk_info['WID']
+        zjhs_time = get_zjhs_time(covidTestMethod)
+        logger.info("最近核酸时间设置为：{}", zjhs_time)
         param = {
             'WID': wid,
             'IS_TWZC': 1,  # 是否体温正常
             'CURR_LOCATION': curr_location,  # 位置
-            'ZJHSJCSJ': get_zjhs_time(covidTestMethod),  # 最近核酸检测时间
+            'ZJHSJCSJ': zjhs_time,  # 最近核酸检测时间
             'JRSKMYS': 1,  # 今日苏康码颜色
             'IS_HAS_JKQK': 1,  # 健康情况
             'JZRJRSKMYS': 1,  # 居住人今日苏康码颜色
@@ -73,7 +54,7 @@ def apply(curr_location, logger, auth: NjuUiaAuth, covidTestMethod='YESTERDAY', 
             "X-Requested-With": "com.wisedu.cpdaily.nju",
             "User-Agent": "Mozilla/5.0 (Linux; Android 11; M2006J10C Build/RP1A.200720.011; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/92.0.4515.131 Mobile Safari/537.36 cpdaily/8.2.7 wisedu/8.2.7"
         }
-        url = URL_JKDK_APPLY + '?' + urlencode(param)
+        url = f'{URL_JKDK_APPLY}?{urlencode(param)}'
 
         if not has_applied or force:
             logger.info('正在打卡')
@@ -88,27 +69,3 @@ def apply(curr_location, logger, auth: NjuUiaAuth, covidTestMethod='YESTERDAY', 
 
     logger.error("打卡失败，请尝试手动打卡")
     return False
-
-
-if __name__ == "__main__":
-    auth = NjuUiaAuth()
-
-    load_dotenv(verbose=True)
-    logging.basicConfig(
-        level=logging.INFO, format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-    log = logging.getLogger()
-
-    while True:
-        with open('./users.json', 'r') as f:
-            users = json.load(f)
-
-        for user, attributes in users.items():
-            username, password, location = attributes
-            for i in range(10):
-                log.info(f"[{user}]尝试第[{i+1}]次打卡")
-                try:
-                    if login(username, password, log, auth) and apply(location, log, auth):
-                        break
-                except:
-                    pass
-        time.sleep(10800)

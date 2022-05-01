@@ -5,13 +5,12 @@ PACKAGES:
     NjuUiaAuth
     NjuEliteAuth
 """
-import os
-import re
-import time
-from io import BytesIO
-
 import execjs
 import requests
+import re
+import os
+from io import BytesIO
+import time
 
 URL_NJU_UIA_AUTH = 'https://authserver.nju.edu.cn/authserver/login'
 URL_NJU_ELITE_LOGIN = 'http://elite.nju.edu.cn/jiaowu/login.do'
